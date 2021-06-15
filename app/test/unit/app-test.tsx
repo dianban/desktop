@@ -30,6 +30,7 @@ import { RepositoryStateCache } from '../../src/lib/stores/repository-state-cach
 import { ApiRepositoriesStore } from '../../src/lib/stores/api-repositories-store'
 import { CommitStatusStore } from '../../src/lib/stores/commit-status-store'
 import { AheadBehindStore } from '../../src/lib/stores/ahead-behind-store'
+import { TaskStore } from '../../src/lib/stores/task-store'
 
 describe('App', () => {
   let appStore: AppStore
@@ -73,6 +74,7 @@ describe('App', () => {
     const apiRepositoriesStore = new ApiRepositoriesStore(accountsStore)
     const commitStatusStore = new CommitStatusStore(accountsStore)
     aheadBehindStore = new AheadBehindStore()
+    const taskStore = new TaskStore(accountsStore, repositoryStateManager, statsStore)
 
     appStore = new AppStore(
       githubUserStore,
@@ -91,7 +93,8 @@ describe('App', () => {
       appStore,
       repositoryStateManager,
       statsStore,
-      commitStatusStore
+      commitStatusStore,
+      taskStore
     )
   })
 

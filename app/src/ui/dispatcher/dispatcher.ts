@@ -109,6 +109,7 @@ import { CherryPickResult } from '../../lib/git/cherry-pick'
 import { sleep } from '../../lib/promise'
 import { DragElement } from '../../models/drag-element'
 import { findDefaultUpstreamBranch } from '../../lib/branch'
+import { TaskStore } from '../../lib/stores/task-store'
 
 /**
  * An error handler function.
@@ -132,7 +133,8 @@ export class Dispatcher {
     private readonly appStore: AppStore,
     private readonly repositoryStateManager: RepositoryStateCache,
     private readonly statsStore: StatsStore,
-    private readonly commitStatusStore: CommitStatusStore
+    private readonly commitStatusStore: CommitStatusStore,
+    private readonly taskStore: TaskStore
   ) {}
 
   /** Load the initial state for the app. */
@@ -3031,5 +3033,17 @@ export class Dispatcher {
     branch: Branch
   ): Promise<IAheadBehind | null> {
     return this.appStore._getBranchAheadBehind(repository, branch)
+  }
+
+  public getGitStoreCache() {
+    return this.appStore.getGitStoreCache()
+  }
+
+  public async test(repository: Repository) {
+    return this.taskStore.test(
+      repository,
+      this.getGitStoreCache(),
+      this.appStore.repositoryWithRefreshedGitHubRepository
+    )
   }
 }

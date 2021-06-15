@@ -509,6 +509,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
     }, InitialRepositoryIndicatorTimeout)
   }
 
+  public getGitStoreCache() {
+    return this.gitStoreCache
+  }
+
   /** Figure out what step of the tutorial the user needs to do next */
   private async updateCurrentTutorialStep(
     repository: Repository
@@ -3307,7 +3311,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
    * @param repository
    * @returns repository model (hopefully with fresh `gitHubRepository` info)
    */
-  private async repositoryWithRefreshedGitHubRepository(
+  public async repositoryWithRefreshedGitHubRepository(
     repository: Repository
   ): Promise<Repository> {
     const repoStore = this.repositoriesStore

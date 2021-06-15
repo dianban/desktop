@@ -82,6 +82,7 @@ import {
   ApplicationTheme,
   supportsSystemThemeChanges,
 } from './lib/application-theme'
+import { TaskStore } from '../lib/stores/task-store'
 
 if (__DEV__) {
   installDevGlobals()
@@ -257,6 +258,8 @@ const apiRepositoriesStore = new ApiRepositoriesStore(accountsStore)
 const commitStatusStore = new CommitStatusStore(accountsStore)
 const aheadBehindStore = new AheadBehindStore()
 
+const taskStore = new TaskStore(accountsStore, repositoryStateManager, statsStore)
+
 const appStore = new AppStore(
   gitHubUserStore,
   cloningRepositoriesStore,
@@ -278,7 +281,8 @@ const dispatcher = new Dispatcher(
   appStore,
   repositoryStateManager,
   statsStore,
-  commitStatusStore
+  commitStatusStore,
+  taskStore
 )
 
 dispatcher.registerErrorHandler(defaultErrorHandler)

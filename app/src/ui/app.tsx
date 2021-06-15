@@ -2603,6 +2603,13 @@ export class App extends React.Component<IAppProps, IAppState> {
     if (this.inNoRepositoriesViewState()) {
       return null
     }
+    const state = this.state
+    const repository = state.selectedState?.repository
+    const test = () => {
+      if (repository instanceof Repository) {
+        this.props.dispatcher.test(repository)
+      }
+    }
 
     return (
       <Toolbar id="desktop-app-toolbar">
@@ -2614,6 +2621,7 @@ export class App extends React.Component<IAppProps, IAppState> {
         </div>
         {this.renderBranchToolbarButton()}
         {this.renderPushPullToolbarButton()}
+        <button onClick={test}>test</button>
       </Toolbar>
     )
   }
