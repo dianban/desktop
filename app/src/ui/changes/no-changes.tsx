@@ -704,10 +704,23 @@ export class NoChanges extends React.Component<
   }
 
   public render() {
+    const {
+      taskList,
+      currentTaskKey,
+      tasksCache,
+    } = this.props.repositoryState.tasksState
+    let taskData = null
+    if (currentTaskKey !== null) {
+      taskData = taskList.find(i => i.id === currentTaskKey) || null
+    }
+
     return (
       <div id="no-changes">
         {2 > 1 ? (
-          <Flow />
+          <Flow
+            taskData={taskData}
+            taskCache={(currentTaskKey && tasksCache[currentTaskKey]) || null}
+          />
         ) : (
           <div className="content">
             <div className="header">

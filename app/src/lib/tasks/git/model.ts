@@ -1,6 +1,13 @@
-export interface IDefaultGitOpts {
+import { IActionOpts } from '../common/model'
+
+export enum ActionGitName {
+  pullCurrentRemote,
+  configPullRebase,
+  mergeBaseBranchUpstream,
+}
+
+export interface IActionGitOpts extends IActionOpts {
   readonly args: string[]
-  readonly name: string
   readonly successExitCodes?: number[]
   readonly needAccount?: boolean
   readonly needProcess?: boolean

@@ -43,6 +43,7 @@ import { ApiRepositoriesStore } from '../../src/lib/stores/api-repositories-stor
 import { getStatusOrThrow } from '../helpers/status'
 import { AppFileStatusKind } from '../../src/models/status'
 import { ManualConflictResolution } from '../../src/models/manual-conflict-resolution'
+import { TaskStore } from '../../src/lib/stores/task-store'
 
 // enable mocked version
 jest.mock('../../src/lib/window-state')
@@ -77,6 +78,7 @@ describe('AppStore', () => {
     const repositoryStateManager = new RepositoryStateCache()
 
     const apiRepositoriesStore = new ApiRepositoriesStore(accountsStore)
+    const taskStore = new TaskStore(accountsStore, repositoryStateManager)
 
     const appStore = new AppStore(
       githubUserStore,
@@ -88,7 +90,8 @@ describe('AppStore', () => {
       repositoriesStore,
       pullRequestCoordinator,
       repositoryStateManager,
-      apiRepositoriesStore
+      apiRepositoriesStore,
+      taskStore
     )
 
     return { appStore, repositoriesStore }

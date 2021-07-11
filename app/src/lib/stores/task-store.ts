@@ -1,31 +1,33 @@
 import { BaseStore } from './base-store'
 import { AccountsStore } from './accounts-store'
 import { RepositoryStateCache } from './repository-state-cache'
-import { StatsStore } from '../stats'
 import { Account } from '../../models/account'
 import { Repository } from '../../models/repository'
 import {
+  ActionStatusType,
   ActionType,
+  getTaskID,
   IActionArgs,
-  IActionItem,
+  ITaskItem,
+  ITasksState,
   RuleType,
-  testTask,
 } from '../tasks'
 import { GitStoreCache } from './git-store-cache'
-import { IDefaultGitOpts } from '../tasks/defaultGit/model'
 import { IGitAccount } from '../../models/git-account'
 import { git, gitNetworkArguments, gitRebaseArguments } from '../git'
 import { getAccountForRepository } from '../get-account-for-repository'
 import { getGenericHostname, getGenericUsername } from '../generic-git-auth'
 import { executionOptionsWithProgress, GitProgressParser } from '../progress'
+import { withTrampolineEnvForRemoteOperation } from '../trampoline/trampoline-environment'
+import { merge } from '../merge'
+import { IActionGitOpts } from '../tasks/git/model'
 
 export class TaskStore extends BaseStore {
   private accounts: ReadonlyArray<Account> = []
 
   public constructor(
     accountsStore: AccountsStore,
-    public repositoryStateCache: RepositoryStateCache,
-    public statsStore: StatsStore
+    public repositoryStateCache: RepositoryStateCache // public statsStore: StatsStore
   ) {
     super()
     accountsStore.getAll().then(this.onAccountsUpdated)
@@ -85,7 +87,7 @@ export class TaskStore extends BaseStore {
     repositoryWithRefreshedGitHubRepository: (
       repository: Repository
     ) => Promise<Repository>,
-    opts: IDefaultGitOpts,
+    opts: IActionGitOpts,
     allData: any
   ) {
     const {
@@ -99,7 +101,8 @@ export class TaskStore extends BaseStore {
       resultKey,
     } = opts
 
-    const fullArgs = []
+    const fullArgs: string[] = []
+    let account: IGitAccount | null = null
     let gitOptions: { [key: string]: any } = {}
     if (successExitCodes) {
       gitOptions['successExitCodes'] = new Set(successExitCodes)
@@ -112,10 +115,8 @@ export class TaskStore extends BaseStore {
         repositoryWithRefreshedGitHubRepository
       )
       repository = gitAccount.repository
-      const networkArguments = await gitNetworkArguments(
-        repository,
-        gitAccount.account
-      )
+      account = gitAccount.account
+      const networkArguments = await gitNetworkArguments(repository, account)
       fullArgs.push(...networkArguments)
     }
 
@@ -157,11 +158,22 @@ export class TaskStore extends BaseStore {
           // const value = progress.percent
         }
       )
-      // fullArgs.push('--progress')
     }
 
     console.log(fullArgs)
-    const result = await git(fullArgs, repository.path, name, { ...gitOptions })
+    console.log(gitOptions)
+    // const result = await git(fullArgs, repository.path, name, { ...gitOptions })
+    const result = await withTrampolineEnvForRemoteOperation(
+      account,
+      allData.currentRemateUrl,
+      env => {
+        return git(fullArgs, repository.path, name.toString(), {
+          ...gitOptions,
+          env: merge(gitOptions.env, env),
+        })
+      }
+    )
+    console.log(22222, result)
 
     if (resultKey) {
       return {
@@ -171,42 +183,85 @@ export class TaskStore extends BaseStore {
     return null
   }
 
+  public updateTasksState<K extends keyof ITasksState>(
+    repository: Repository,
+    data: Pick<ITasksState, K>
+  ) {
+    this.repositoryStateCache.updateTasksState(repository, () => data)
+    this.emitUpdate()
+  }
+
   public async test(
+    repository: Repository,
+    task: ITaskItem,
+    gitStoreCache: GitStoreCache,
+    repositoryWithRefreshedGitHubRepository: (
+      repository: Repository
+    ) => Promise<Repository>
+  ) {
+    const { taskList } = this.repositoryStateCache.get(repository).tasksState
+    const id = getTaskID()
+    this.updateTasksState(repository, {
+      taskList: taskList.concat([{ ...task, id }]),
+    })
+    this.handleTaskList(
+      repository,
+      gitStoreCache,
+      repositoryWithRefreshedGitHubRepository
+    )
+  }
+
+  private async handleTaskList(
     repository: Repository,
     gitStoreCache: GitStoreCache,
     repositoryWithRefreshedGitHubRepository: (
       repository: Repository
     ) => Promise<Repository>
   ) {
-    console.log(this.accounts)
-    const list: { [key: string]: IActionItem } = testTask
+    const { taskList } = this.repositoryStateCache.get(repository).tasksState
+    if (taskList.length === 0) {
+      return
+    }
+    const { name, actions, id } = taskList[0]
+    this.updateTasksState(repository, {
+      currentTaskKey: id,
+    })
+
+    console.log('task start', name, id)
     let allData: IActionArgs = {
       repository,
       gitStoreCache,
       repositoryStateCache: this.repositoryStateCache,
-      statsStore: this.statsStore,
+      // statsStore: this.statsStore,
     }
+
     let curActionKey = 'start'
-    let status: { [key: string]: string } = {}
-    while (list[curActionKey]) {
-      status[curActionKey] = 'going'
-      const curAction = list[curActionKey]
+    while (actions[curActionKey]) {
+      console.log('action start', curActionKey)
+      this.updateActionPath(repository, id, curActionKey)
+      this.updateActionStatus(
+        repository,
+        id,
+        curActionKey,
+        ActionStatusType.going
+      )
+
+      const curAction = actions[curActionKey]
       const next = curAction.next
       let error: Error | null = null
       let data: any = {}
       let success: boolean = true
-      console.log(curAction)
       try {
         switch (curAction.type) {
           case ActionType.defaultNode: {
             break
           }
-          case ActionType.defaultCheck: {
-            const { fn } = curAction
+          case ActionType.gitStore: {
+            const { fn } = curAction.opts
             data = await fn(allData)
             break
           }
-          case ActionType.defaultGit: {
+          case ActionType.git: {
             data = await this.handleDefaultGit(
               repository,
               gitStoreCache,
@@ -217,18 +272,25 @@ export class TaskStore extends BaseStore {
             console.log(data)
             break
           }
-          case ActionType.git: {
-            break
-          }
         }
-        status[curActionKey] = 'success'
+        this.updateActionStatus(
+          repository,
+          id,
+          curActionKey,
+          ActionStatusType.success
+        )
       } catch (e) {
         console.log(e.message)
         success = false
         error = e
-        status[curActionKey] = 'fail'
+        this.updateActionStatus(
+          repository,
+          id,
+          curActionKey,
+          ActionStatusType.success
+        )
       } finally {
-        console.log(curAction, success)
+        console.log('action end', curActionKey, curAction, success)
         curActionKey = ''
         if (typeof data === 'object') {
           allData = {
@@ -246,7 +308,12 @@ export class TaskStore extends BaseStore {
           switch (ruleType) {
             case RuleType.all:
               if (!success) {
-                status[curActionKey] = 'warning'
+                this.updateActionStatus(
+                  repository,
+                  id,
+                  curActionKey,
+                  ActionStatusType.warning
+                )
               }
               curActionKey = to
               flag = true
@@ -281,9 +348,75 @@ export class TaskStore extends BaseStore {
           }
         }
       }
-      console.log(curActionKey)
+    }
+    console.log(1111111111)
+    this.removeTask(repository, id)
+  }
+
+  private updateActionPath = (
+    repository: Repository,
+    id: number,
+    actionKey: string
+  ) => {
+    const { tasksCache } = this.repositoryStateCache.get(repository).tasksState
+    if (!tasksCache[id]) {
+      tasksCache[id] = {
+        executionPath: [],
+        executionStatus: {},
+      }
+    }
+    let executionPath = tasksCache[id].executionPath.slice()
+    let executionStatus = Object.assign({}, tasksCache[id].executionStatus)
+    const index = executionPath.findIndex(i => i === actionKey)
+
+    if (index > -1) {
+      for (let i = index; i++; i < executionPath.length) {
+        executionStatus[executionPath[i]] = ActionStatusType.waiting
+      }
+      executionPath = executionPath.slice(0, index + 1)
+    } else {
+      executionPath.push(actionKey)
+    }
+    tasksCache[id] = {
+      executionPath,
+      executionStatus,
     }
 
-    console.log(status)
+    this.updateTasksState(repository, {
+      tasksCache,
+    })
+  }
+
+  private updateActionStatus(
+    repository: Repository,
+    id: number,
+    actionKey: string,
+    status: ActionStatusType
+  ) {
+    const { tasksCache } = this.repositoryStateCache.get(repository).tasksState
+    if (!tasksCache[id]) {
+      tasksCache[id] = {
+        executionPath: [],
+        executionStatus: {},
+      }
+    }
+    tasksCache[id].executionStatus[actionKey] = status
+
+    this.updateTasksState(repository, {
+      tasksCache,
+    })
+  }
+
+  private removeTask(repository: Repository, id: number) {
+    const taskList = this.repositoryStateCache
+      .get(repository)
+      .tasksState.taskList.slice()
+    const index = taskList.findIndex(item => item.id === id)
+    if (index > -1) {
+      taskList.splice(index, 1)
+      this.updateTasksState(repository, {
+        taskList,
+      })
+    }
   }
 }

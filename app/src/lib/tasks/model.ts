@@ -1,25 +1,48 @@
-import {
-  checkCurrentRemote,
-  checkTipIsValid,
-  recordPullWith,
-} from './defaultCheck'
 import { GitStoreCache } from '../stores/git-store-cache'
 import { Repository } from '../../models/repository'
 import { RepositoryStateCache } from '../stores/repository-state-cache'
-import { StatsStore } from '../stats'
-import {
-  defaultPull,
-  gitConfigPullRebase,
-  mergeBaseBranchUpstream,
-} from './defaultGit'
-import { IDefaultGitOpts } from './defaultGit/model'
+import { IActionGitOpts } from './git/model'
+import { IActionGitStoreOpts } from './git-store/model'
+import { IActionNodeOpts } from './node'
+
+// tasks state
+export interface ITasksState {
+  readonly taskList: ReadonlyArray<ITaskQueueItem> // 任务列表
+  readonly currentTaskKey: number | null // 当前任务key
+  readonly tasksCache: { [key: number]: ITaskCacheItem }
+}
+
+export interface ITaskItem {
+  readonly name: string
+  readonly actions: TaskActions
+}
+
+export interface ITaskQueueItem extends ITaskItem {
+  readonly id: number
+}
+
+export interface ITaskCacheItem {
+  executionPath: ReadonlyArray<string>
+  executionStatus: { [key: string]: ActionStatusType } // 执行状态
+}
+
+export enum ActionStatusType {
+  waiting,
+  going,
+  success,
+  fail,
+  warning,
+}
+
+export interface ITaskStatusItem {
+  readonly actionKey: string
+  readonly status: ActionStatusType
+}
 
 export enum ActionType {
   defaultNode,
-  defaultGit,
-  defaultCheck,
   git,
-  // updateGitStore,
+  gitStore,
 }
 
 export enum RuleType {
@@ -41,99 +64,24 @@ export interface IActionArgs {
   readonly repository: Repository
   readonly gitStoreCache: GitStoreCache
   readonly repositoryStateCache: RepositoryStateCache
-  readonly statsStore: StatsStore
+  // readonly statsStore: StatsStore
   [key: string]: any
 }
 
+export type TaskActions = { [key: string]: IActionItem }
 export type IActionItem =
   | {
       type: ActionType.defaultNode
-      next: Array<INextRuleItem>
-    }
-  | {
-      type: ActionType.defaultGit
-      opts: IDefaultGitOpts
-      next: Array<INextRuleItem>
-    }
-  | {
-      type: ActionType.defaultCheck
-      fn: (args: IActionArgs) => any
+      opts: IActionNodeOpts
       next: Array<INextRuleItem>
     }
   | {
       type: ActionType.git
+      opts: IActionGitOpts
       next: Array<INextRuleItem>
     }
-
-const actionDefaultCheck = {
-  checkCurrentRemote: checkCurrentRemote,
-  checkTipIsValid: checkTipIsValid,
-  recordPullWith: recordPullWith,
-  gitConfigPullRebase: gitConfigPullRebase,
-}
-
-type TaskType = { [key: string]: IActionItem }
-export const testTask: TaskType = {
-  start: {
-    type: ActionType.defaultNode,
-    next: [
-      {
-        to: '0',
-      },
-    ],
-  },
-  '0': {
-    type: ActionType.defaultCheck,
-    fn: actionDefaultCheck.checkCurrentRemote,
-    next: [
-      {
-        ruleType: RuleType.success,
-        to: '1',
-      },
-    ],
-  },
-  '1': {
-    type: ActionType.defaultCheck,
-    fn: actionDefaultCheck.checkTipIsValid,
-    next: [
-      {
-        ruleType: RuleType.success,
-        to: 'mergeBase',
-      },
-    ],
-  },
-  mergeBase: {
-    type: ActionType.defaultGit,
-    opts: mergeBaseBranchUpstream,
-    next: [
-      {
-        ruleType: RuleType.success,
-        to: '2',
-      },
-    ],
-  },
-  '2': {
-    type: ActionType.defaultGit,
-    opts: gitConfigPullRebase,
-    next: [
-      {
-        ruleType: RuleType.success,
-        to: 'gitPull',
-      },
-    ],
-  },
-  gitPull: {
-    type: ActionType.defaultGit,
-    opts: defaultPull,
-    next: [
-      {
-        ruleType: RuleType.success,
-        to: 'end',
-      },
-    ],
-  },
-  end: {
-    type: ActionType.defaultNode,
-    next: [],
-  },
-}
+  | {
+      type: ActionType.gitStore
+      opts: IActionGitStoreOpts
+      next: Array<INextRuleItem>
+    }

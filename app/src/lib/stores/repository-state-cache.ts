@@ -22,6 +22,7 @@ import {
 } from '../app-state'
 import { merge } from '../merge'
 import { DefaultCommitMessage } from '../../models/commit-message'
+import { ITasksState } from '../tasks'
 
 export class RepositoryStateCache {
   private readonly repositoryState = new Map<string, IRepositoryState>()
@@ -113,6 +114,17 @@ export class RepositoryStateCache {
       return { cherryPickState: newState }
     })
   }
+
+  public updateTasksState<K extends keyof ITasksState>(
+    repository: Repository,
+    fn: (state: ITasksState) => Pick<ITasksState, K>
+  ) {
+    this.update(repository, state => {
+      const { tasksState } = state
+      const newState = merge(tasksState, fn(tasksState))
+      return { tasksState: newState }
+    })
+  }
 }
 
 function getInitialRepositoryState(): IRepositoryState {
@@ -188,6 +200,11 @@ function getInitialRepositoryState(): IRepositoryState {
       userHasResolvedConflicts: false,
       targetBranchUndoSha: null,
       branchCreated: false,
+    },
+    tasksState: {
+      taskList: [],
+      currentTaskKey: null,
+      tasksCache: {},
     },
   }
 }

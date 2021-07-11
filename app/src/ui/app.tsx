@@ -135,6 +135,7 @@ import { CherryPickCommit } from './drag-elements/cherry-pick-commit'
 import classNames from 'classnames'
 import { dragAndDropManager } from '../lib/drag-and-drop-manager'
 import { MoveToApplicationsFolder } from './move-to-applications-folder'
+import { taskPull } from '../lib/tasks/task/pull'
 
 const MinuteInMilliseconds = 1000 * 60
 const HourInMilliseconds = MinuteInMilliseconds * 60
@@ -2607,7 +2608,7 @@ export class App extends React.Component<IAppProps, IAppState> {
     const repository = state.selectedState?.repository
     const test = () => {
       if (repository instanceof Repository) {
-        this.props.dispatcher.test(repository)
+        this.props.dispatcher.test(repository, taskPull)
       }
     }
 

@@ -1,67 +1,24 @@
 import * as React from 'react'
 import { FlowItem } from './flow-item'
 import { IActionOverviewItem } from './model'
+import {
+  ActionStatusType,
+  getTaskPath,
+  ITaskCacheItem,
+  ITaskQueueItem,
+  taskDataToOverviewData,
+} from '../../lib/tasks'
 
-interface IProps {}
+interface IProps {
+  readonly taskData: ITaskQueueItem | null
+  readonly taskCache: ITaskCacheItem | null
+}
 
 interface IState {
-  readonly list: { [key: string]: IActionOverviewItem }
+  readonly list: { [key: string]: IActionOverviewItem } | null
 }
 
 export class Flow extends React.Component<IProps, IState> {
-  private data = {
-    start: {
-      next: [
-        {
-          to: '2',
-        },
-      ],
-    },
-    '2': {
-      next: [
-        {
-          to: '3',
-        },
-      ],
-    },
-    '3': {
-      next: [
-        {
-          to: '3',
-        },
-        {
-          to: '4',
-        },
-        {
-          to: '2',
-        },
-      ],
-    },
-    '4': {
-      next: [
-        {
-          to: '5',
-        },
-        {
-          to: '7',
-        },
-      ],
-    },
-    '5': {
-      next: [
-        {
-          to: '8',
-        },
-      ],
-    },
-    '7': {
-      next: [],
-    },
-    '8': {
-      next: [],
-    },
-  }
-
   public constructor(props: IProps) {
     super(props)
     this.state = {
@@ -70,82 +27,53 @@ export class Flow extends React.Component<IProps, IState> {
   }
 
   public componentDidMount(): void {
-    const list = this.dataToArray(this.data)
+    this.setList()
+  }
+
+  public componentDidUpdate(
+    prevProps: Readonly<IProps>,
+    prevState: Readonly<IState>,
+    snapshot?: any
+  ): void {
+    if (prevProps.taskData?.id !== this.props.taskData?.id) {
+      this.setList()
+    }
+  }
+
+  private setList = () => {
+    const { taskData } = this.props
+    if (taskData === null) {
+      this.setState({ list: null })
+      return
+    }
+    const list = taskDataToOverviewData(taskData.actions)
     console.log(list)
     this.setState({ list })
   }
 
-  private dataToArray(data: any) {
-    const res: any = {}
-    let curCol = [
-      {
-        key: 'start',
-        parentKey: '',
-      },
-    ]
-    let row = 0
-    let col = 0
-    let i = 0
-    while (curCol.length && i < 10) {
-      i++
-      row = 0
-      const nextCol = []
-      for (const item of curCol) {
-        const key = item.key
-        const parentKey = item.parentKey
-        let flag = true
-        if (!res[key]) {
-          res[key] = {
-            key,
-            col,
-            row,
-            lines: [],
-          }
-          flag = false
-          if (res[parentKey]) {
-            res[parentKey].lines.push({
-              row,
-              col,
-            })
-          }
-        } else {
-          if (res[parentKey]) {
-            const { row, col } = res[key]
-            res[parentKey].lines.push({
-              row,
-              col,
-            })
-          }
-        }
-        if (flag) {
-          continue
-        }
-        const optItem = data[key]
-        if (!optItem) {
-          console.log('error', key)
-        }
-        const next = optItem.next
-        for (const nextItem of next) {
-          nextCol.push({
-            key: nextItem.to,
-            parentKey: key,
-          })
-          row++
-        }
-      }
-      curCol = nextCol
-      col++
-    }
-    return res
-  }
-
   public render() {
-    const keys = Object.keys(this.state.list)
+    const { list } = this.state
+    const { taskCache } = this.props
+    const executionPath = taskCache?.executionPath || []
+    const executionStatus = taskCache?.executionStatus || {}
+
+    const paths = getTaskPath(list, executionPath)
+
     return (
       <div className="task-overview">
-        {keys.map(key => (
-          <FlowItem key={key} data={this.state.list[key]} />
-        ))}
+        {list
+          ? Object.keys(list).map(key => {
+              const status = executionStatus[key] || ActionStatusType.waiting
+              return (
+                <FlowItem
+                  key={key}
+                  data={list[key]}
+                  status={status}
+                  paths={paths}
+                />
+              )
+            })
+          : null}
       </div>
     )
   }

@@ -110,6 +110,7 @@ import { sleep } from '../../lib/promise'
 import { DragElement } from '../../models/drag-element'
 import { findDefaultUpstreamBranch } from '../../lib/branch'
 import { TaskStore } from '../../lib/stores/task-store'
+import { ITaskItem } from '../../lib/tasks'
 
 /**
  * An error handler function.
@@ -3039,9 +3040,10 @@ export class Dispatcher {
     return this.appStore.getGitStoreCache()
   }
 
-  public async test(repository: Repository) {
+  public async test(repository: Repository, task: ITaskItem) {
     return this.taskStore.test(
       repository,
+      task,
       this.getGitStoreCache(),
       this.appStore.repositoryWithRefreshedGitHubRepository
     )

@@ -40,6 +40,7 @@ import { TutorialStep } from '../models/tutorial-step'
 import { UncommittedChangesStrategy } from '../models/uncommitted-changes-strategy'
 import { CherryPickFlowStep } from '../models/cherry-pick'
 import { DragElement } from '../models/drag-element'
+import { ITasksState } from './tasks'
 
 export enum SelectionType {
   Repository,
@@ -453,6 +454,8 @@ export interface IRepositoryState {
 
   /** State associated with a cherry pick being performed */
   readonly cherryPickState: ICherryPickState
+
+  readonly tasksState: ITasksState
 }
 
 export interface IBranchesState {

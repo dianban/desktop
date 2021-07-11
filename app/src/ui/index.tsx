@@ -258,7 +258,7 @@ const apiRepositoriesStore = new ApiRepositoriesStore(accountsStore)
 const commitStatusStore = new CommitStatusStore(accountsStore)
 const aheadBehindStore = new AheadBehindStore()
 
-const taskStore = new TaskStore(accountsStore, repositoryStateManager, statsStore)
+const taskStore = new TaskStore(accountsStore, repositoryStateManager)
 
 const appStore = new AppStore(
   gitHubUserStore,
@@ -270,7 +270,8 @@ const appStore = new AppStore(
   repositoriesStore,
   pullRequestCoordinator,
   repositoryStateManager,
-  apiRepositoriesStore
+  apiRepositoriesStore,
+  taskStore
 )
 
 appStore.onDidUpdate(state => {

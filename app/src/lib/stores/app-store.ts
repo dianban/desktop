@@ -283,6 +283,7 @@ import {
   isCherryPickHeadFound,
 } from '../git/cherry-pick'
 import { DragElement } from '../../models/drag-element'
+import { TaskStore } from './task-store'
 
 const LastSelectedRepositoryIDKey = 'last-selected-repository-id'
 
@@ -460,7 +461,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
     private readonly repositoriesStore: RepositoriesStore,
     private readonly pullRequestCoordinator: PullRequestCoordinator,
     private readonly repositoryStateCache: RepositoryStateCache,
-    private readonly apiRepositoriesStore: ApiRepositoriesStore
+    private readonly apiRepositoriesStore: ApiRepositoriesStore,
+    private readonly taskStore: TaskStore
   ) {
     super()
 
@@ -660,6 +662,9 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
     this.apiRepositoriesStore.onDidUpdate(() => this.emitUpdate())
     this.apiRepositoriesStore.onDidError(error => this.emitError(error))
+
+    this.taskStore.onDidUpdate(() => this.emitUpdate())
+    this.taskStore.onDidError(error => this.emitError(error))
   }
 
   /** Load the emoji from disk. */

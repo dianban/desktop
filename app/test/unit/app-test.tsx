@@ -74,7 +74,7 @@ describe('App', () => {
     const apiRepositoriesStore = new ApiRepositoriesStore(accountsStore)
     const commitStatusStore = new CommitStatusStore(accountsStore)
     aheadBehindStore = new AheadBehindStore()
-    const taskStore = new TaskStore(accountsStore, repositoryStateManager, statsStore)
+    const taskStore = new TaskStore(accountsStore, repositoryStateManager)
 
     appStore = new AppStore(
       githubUserStore,
@@ -86,7 +86,8 @@ describe('App', () => {
       repositoriesStore,
       pullRequestCoordinator,
       repositoryStateManager,
-      apiRepositoriesStore
+      apiRepositoriesStore,
+      taskStore
     )
 
     dispatcher = new InMemoryDispatcher(
