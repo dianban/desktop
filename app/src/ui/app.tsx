@@ -2729,6 +2729,14 @@ export class App extends React.Component<IAppProps, IAppState> {
       return null
     }
 
+    if (2 > 1) {
+      return (
+        <div>
+          {this.props.children}
+        </div>
+      )
+    }
+
     const className = this.state.appIsFocused ? 'focused' : 'blurred'
 
     const currentTheme = this.state.showWelcomeFlow

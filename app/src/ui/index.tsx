@@ -3,6 +3,9 @@ import '../lib/logging/renderer/install'
 import * as React from 'react'
 import * as ReactDOM from 'react-dom'
 import * as Path from 'path'
+import { Switch, Route, Router } from 'react-router'
+import routeConfig from '../route/routeConfig'
+import history from '../route/history'
 
 import * as moment from 'moment'
 
@@ -83,6 +86,7 @@ import {
   supportsSystemThemeChanges,
 } from './lib/application-theme'
 import { TaskStore } from '../lib/stores/task-store'
+import { History } from 'history'
 
 if (__DEV__) {
   installDevGlobals()
@@ -336,6 +340,51 @@ ipcRenderer.on(
   }
 )
 
+function renderRouteConfigV3(routes: any, contextPath: any, history: History) {
+  // Resolve route config object in React Router v3.
+  const children: any = [] // children component list
+
+  const renderRoute = (item: any, routeContextPath: any) => {
+    let newContextPath: any
+    if (/^\//.test(item.path)) {
+      newContextPath = item.path
+    } else {
+      newContextPath = `${routeContextPath}/${item.path}`
+    }
+    newContextPath = newContextPath.replace(/\/+/g, '/')
+    if (item.component && item.childRoutes) {
+      const childRoutes = renderRouteConfigV3(item.childRoutes, newContextPath, history)
+      children.push(
+        <Route
+          key={newContextPath}
+          render={props => (
+            <item.component {...props}>{childRoutes}</item.component>
+          )}
+          path={newContextPath}
+        />
+      )
+    } else if (item.component) {
+      children.push(
+        <Route
+          key={newContextPath}
+          component={item.component}
+          path={newContextPath}
+          exact
+        />
+      )
+    } else if (item.childRoutes) {
+      item.childRoutes.forEach((r: any) => renderRoute(r, newContextPath))
+    }
+  }
+
+  routes.forEach((item: any) => renderRoute(item, contextPath))
+
+  // Use Switch so that only the first matched route is rendered.
+  return <Switch>{children}</Switch>
+}
+
+const children = renderRouteConfigV3(routeConfig, '/', history)
+
 ReactDOM.render(
   <App
     dispatcher={dispatcher}
@@ -345,6 +394,8 @@ ReactDOM.render(
     gitHubUserStore={gitHubUserStore}
     aheadBehindStore={aheadBehindStore}
     startTime={startTime}
-  />,
+  >
+    <Router history={history}>{children}</Router>
+  </App>,
   document.getElementById('desktop-app-container')!
 )
